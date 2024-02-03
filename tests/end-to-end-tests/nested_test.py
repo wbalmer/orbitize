@@ -36,7 +36,7 @@ lab = sys.param_idx
 nested_sampler = sampler.NestedSampler(sys)
 
 samples, exec_time, num_iter = nested_sampler.run_sampler(
-    static=True, bound="multi", num_threads=50, dlogz=0.1, nlive=200,
+    static=True, bound="multi", num_threads=50, dlogz=1, nlive=500,
 )
 nested_sampler.results.save_results("{}/nested_sampler_test.hdf5".format(savedir))
 print("execution time (min) is: " + str(exec_time))

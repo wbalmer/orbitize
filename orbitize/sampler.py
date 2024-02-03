@@ -1342,6 +1342,7 @@ class NestedSampler(Sampler):
         start_method="fork",
         save=None,
         resume=False,
+        bootstrap=False,
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1371,6 +1372,7 @@ class NestedSampler(Sampler):
                 terminated early. defaults to None.
             resume (bool): if true, save is set and exists, will resume from a previous
                 nested sampling run. default false.
+            bootstrap (bool): if true, bootstraps the bounds. can be slow!
 
         Returns:
             tuple:
@@ -1403,28 +1405,43 @@ class NestedSampler(Sampler):
         if num_threads > 1:
             with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
                 if static:
-                    sampler = dynesty.NestedSampler(
-                        pool.loglike,
-                        pool.prior_transform,
-                        len(self.system.sys_priors),
-                        pool=pool,
-                        bound=bound,
-                        bootstrap=False,
-                    )
+                    if resume:
+                        print(f"Resuming nested sampling from {save}")
+                        dynesty.NestedSampler.restore(
+                            fname=save,
+                            pool=pool,
+                        )
+                    else:
+                        sampler = dynesty.NestedSampler(
+                            pool.loglike,
+                            pool.prior_transform,
+                            len(self.system.sys_priors),
+                            nlive=nlive,
+                            pool=pool,
+                            bound=bound,
+                            bootstrap=bootstrap,
+                        )
+
                     sampler.run_nested(checkpoint_file=checkpoint_file,
                                        resume=resume,
                                        dlogz=dlogz,
-                                       nlive=nlive,
                                        )
                 else:
-                    sampler = dynesty.DynamicNestedSampler(
-                        pool.loglike,
-                        pool.prior_transform,
-                        len(self.system.sys_priors),
-                        pool=pool,
-                        bound=bound,
-                        bootstrap=False,
-                    )
+                    if resume:
+                        print(f"Resuming nested sampling from {save}")
+                        sampler = dynesty.DynamicNestedSampler.restore(
+                            fname=save,
+                            pool=pool,
+                        )
+                    else:
+                        sampler = dynesty.DynamicNestedSampler(
+                            pool.loglike,
+                            pool.prior_transform,
+                            len(self.system.sys_priors),
+                            pool=pool,
+                            bound=bound,
+                            bootstrap=bootstrap,
+                        )
                     sampler.run_nested(wt_kwargs={"pfrac": pfrac},
                                        checkpoint_file=checkpoint_file,
                                        resume=resume,
@@ -1433,23 +1450,40 @@ class NestedSampler(Sampler):
                                        )
         else:
             if static:
-                sampler = dynesty.NestedSampler(
-                    self._logl,
-                    self.ptform,
-                    len(self.system.sys_priors),
-                    bound=bound,
-                )
+                if resume:
+                    print(f"Resuming nested sampling from {save}")
+                    sampler = dynesty.NestedSampler.restore(
+                            fname=save,
+                        )
+                else:
+                    sampler = dynesty.NestedSampler(
+                        self._logl,
+                        self.ptform,
+                        len(self.system.sys_priors),
+                        nlive=nlive,
+                        bound=bound,
+                        bootstrap=bootstrap,
+                    )
+
                 sampler.run_nested(checkpoint_file=checkpoint_file,
                                    resume=resume,
                                    dlogz=dlogz,
-                                   nlive=nlive,)
+                                   )
             else:
-                sampler = dynesty.DynamicNestedSampler(
-                    self._logl,
-                    self.ptform,
-                    len(self.system.sys_priors),
-                    bound=bound,
-                )
+                if resume:
+                    print(f"Resuming nested sampling from {save}")
+                    sampler = dynesty.DynamicNestedSampler.restore(
+                            fname=save
+                        )
+                else:
+                    sampler = dynesty.DynamicNestedSampler(
+                        self._logl,
+                        self.ptform,
+                        len(self.system.sys_priors),
+                        bound=bound,
+                        bootstrap=bootstrap,
+                    )
+
                 sampler.run_nested(wt_kwargs={"pfrac": pfrac},
                                    checkpoint_file=checkpoint_file,
                                    resume=resume,

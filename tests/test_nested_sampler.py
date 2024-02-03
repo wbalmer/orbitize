@@ -4,6 +4,8 @@ Tests the NestedSampler class by fixing all parameters except for eccentricity.
 
 from orbitize import system, sampler
 import numpy as np
+from time import time
+import os
 import pytest
 from orbitize.system import generate_synthetic_data
 
@@ -59,6 +61,18 @@ def test_nested_sampler():
     except ValueError:
         pass
 
+    # test saving and resuming a run
+    # this will also serve as a test for setting nlive and dlogz
+
+    t_end = time() + 3
+    while time() < t_end:
+        canceled_sampler = sampler.NestedSampler(sys)
+        _ = canceled_sampler.run_sampler(bound="multi", num_threads=8, dlogz=0.01, nlive=400, save='dynesty_test.save')
+
+    resumed_sampler = sampler.NestedSampler(sys)
+    _ = resumed_sampler.run_sampler(bound="multi", num_threads=8, dlogz=0.01, nlive=400, save='dynesty_test.save', resume=True)
+    # clean up
+    os.remove('dynesty_test.save')
 
 if __name__ == "__main__":
     test_nested_sampler()
