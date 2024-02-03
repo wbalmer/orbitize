@@ -4,6 +4,7 @@ import astropy.constants as consts
 import abc
 import time
 from astropy.time import Time
+import os.path
 
 import dynesty
 
@@ -1335,8 +1336,12 @@ class NestedSampler(Sampler):
         static=False,
         bound="multi",
         pfrac=1.0,
+        dlogz=0.01,
+        nlive=400,
         num_threads=1,
         start_method="fork",
+        save=None,
+        resume=False,
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1351,12 +1356,21 @@ class NestedSampler(Sampler):
             pfrac (float): posterior weight, between 0 and 1. Can only be
                 altered for the Dynamic nested sampler, otherwise this
                 keyword is unused.
+            dlogz (float): change in evidence, either to terminate the sampler (static=True)
+                or to begin bootstrapping (dlogz_init, static=False)
+            nlive (int): number of live points, same number if static, initial number of points
+                if dynamic
             num_threads (int): number of threads to use for parallelization
                 (default=1)
             start_method (str): multiprocessing start method. Default "fork," which
                 won't work on all OS. Change to "spawn" if you get an error,
                 and make sure you run your orbitize! script inside an
                 if __name__=='__main__' condition to protect entry points.
+            save (str): file path ending in the ".save" prefix to save temporary 
+                progress to. can be resumed (using resume=True) from if the sampler is 
+                terminated early. defaults to None.
+            resume (bool): if true, save is set and exists, will resume from a previous
+                nested sampling run. default false.
 
         Returns:
             tuple:
@@ -1365,6 +1379,20 @@ class NestedSampler(Sampler):
 
                 int: number of iterations it took to converge
         """
+
+        if save is not None:
+            if resume:
+                if os.path.isfile(save):
+                    checkpoint_file = save
+                else:
+                    raise Exception("Please provide a valid .save file path to save your progress during the NestedSampling run.")
+            else:
+                checkpoint_file = save
+        else:
+            checkpoint_file = None
+            if resume:
+                resume = False
+                raise UserWarning("To resume a dynesty run, please provide a valid [filepath].save string to the `save` arg.")
 
         mp.set_start_method(start_method, force=True)
         if static and pfrac != 1.0:
@@ -1383,7 +1411,11 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                     )
-                    sampler.run_nested()
+                    sampler.run_nested(checkpoint_file=checkpoint_file,
+                                       resume=resume,
+                                       dlogz=dlogz,
+                                       nlive=nlive,
+                                       )
                 else:
                     sampler = dynesty.DynamicNestedSampler(
                         pool.loglike,
@@ -1393,7 +1425,12 @@ class NestedSampler(Sampler):
                         bound=bound,
                         bootstrap=False,
                     )
-                    sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+                    sampler.run_nested(wt_kwargs={"pfrac": pfrac},
+                                       checkpoint_file=checkpoint_file,
+                                       resume=resume,
+                                       dlogz_init=dlogz,
+                                       nlive_init=nlive,
+                                       )
         else:
             if static:
                 sampler = dynesty.NestedSampler(
@@ -1402,7 +1439,10 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-                sampler.run_nested()
+                sampler.run_nested(checkpoint_file=checkpoint_file,
+                                   resume=resume,
+                                   dlogz=dlogz,
+                                   nlive=nlive,)
             else:
                 sampler = dynesty.DynamicNestedSampler(
                     self._logl,
@@ -1410,7 +1450,12 @@ class NestedSampler(Sampler):
                     len(self.system.sys_priors),
                     bound=bound,
                 )
-                sampler.run_nested(wt_kwargs={"pfrac": pfrac})
+                sampler.run_nested(wt_kwargs={"pfrac": pfrac},
+                                   checkpoint_file=checkpoint_file,
+                                   resume=resume,
+                                   dlogz_init=dlogz,
+                                   nlive_init=nlive,
+                                   )
 
         self.results.add_samples(sampler.results["samples"], sampler.results["logl"])
         num_iter = sampler.results["niter"]
