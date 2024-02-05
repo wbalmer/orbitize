@@ -1407,7 +1407,7 @@ class NestedSampler(Sampler):
                 if static:
                     if resume:
                         print(f"Resuming nested sampling from {save}")
-                        dynesty.NestedSampler.restore(
+                        sampler = dynesty.NestedSampler.restore(
                             fname=save,
                             pool=pool,
                         )
