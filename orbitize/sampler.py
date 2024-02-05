@@ -1335,6 +1335,7 @@ class NestedSampler(Sampler):
         self,
         static=False,
         bound="multi",
+        sample_method="auto",
         pfrac=1.0,
         dlogz=0.01,
         nlive=400,
@@ -1354,6 +1355,10 @@ class NestedSampler(Sampler):
                 sampling methods used to propose new live points. See
                 https://dynesty.readthedocs.io/en/latest/quickstart.html#bounding-options
                 for complete list of options.
+            sample_method (str): Method used to draw samples from the bounded prior space
+                for each live point. Any of 'unif', 'rwalk', 'slice', 'rslice',
+                that defaults to 'auto', which chooses from the above based on number of
+                dimensions in the problem (usually 'unif' for single planet fits).
             pfrac (float): posterior weight, between 0 and 1. Can only be
                 altered for the Dynamic nested sampler, otherwise this
                 keyword is unused.
@@ -1417,6 +1422,7 @@ class NestedSampler(Sampler):
                             pool.prior_transform,
                             len(self.system.sys_priors),
                             nlive=nlive,
+                            sample=sample_method,
                             pool=pool,
                             bound=bound,
                             bootstrap=bootstrap,
@@ -1438,6 +1444,7 @@ class NestedSampler(Sampler):
                             pool.loglike,
                             pool.prior_transform,
                             len(self.system.sys_priors),
+                            sample=sample_method,
                             pool=pool,
                             bound=bound,
                             bootstrap=bootstrap,
@@ -1461,6 +1468,7 @@ class NestedSampler(Sampler):
                         self.ptform,
                         len(self.system.sys_priors),
                         nlive=nlive,
+                        sample=sample_method,
                         bound=bound,
                         bootstrap=bootstrap,
                     )
@@ -1480,6 +1488,7 @@ class NestedSampler(Sampler):
                         self._logl,
                         self.ptform,
                         len(self.system.sys_priors),
+                        sample=sample_method,
                         bound=bound,
                         bootstrap=bootstrap,
                     )
