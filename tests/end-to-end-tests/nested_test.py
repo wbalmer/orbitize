@@ -35,11 +35,10 @@ lab = sys.param_idx
 
 nested_sampler = sampler.NestedSampler(sys)
 
-samples, exec_time, num_iter = nested_sampler.run_sampler(
+samples, num_iter = nested_sampler.run_sampler(
     static=True, bound="multi", num_threads=50, dlogz=10, nlive=100,
 )
 nested_sampler.results.save_results("{}/nested_sampler_test.hdf5".format(savedir))
-print("execution time (min) is: " + str(exec_time))
 print("iteration number is: " + str(num_iter))
 
 fig, ax = plt.subplots(2, 1)
