@@ -151,7 +151,7 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                 square_plot=True, show_colorbar=True, cmap=cmap,
                 sep_pa_color='lightgrey', sep_pa_end_year=2025.0,
                 cbar_param='Epoch [year]', mod180=False, rv_time_series=False, plot_astrometry=True,
-                plot_astrometry_insts=False, plot_errorbars=True, fig=None):
+                plot_astrometry_insts=False, plot_errorbars=True, fig=None, axs=None):
     """
     Plots one orbital period for a select number of fitted orbits
     for a given object, with line segments colored according to time
@@ -324,22 +324,26 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
             warnings.warn("Unable to plot radial velocity data.")
             rv_time_series = False
 
-        # Create figure for orbit plots
-        if fig is None:
-            fig = plt.figure(figsize=(14, 6))
-            if rv_time_series:
-                fig = plt.figure(figsize=(14, 9))
-                ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
-            else:
+
+        if axs is None:
+            # Create figure for orbit plots
+            if fig is None:
                 fig = plt.figure(figsize=(14, 6))
-                ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
-        else:
-            plt.figure(fig.number)
-            if rv_time_series:
-                ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                if rv_time_series:
+                    fig = plt.figure(figsize=(14, 9))
+                    ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                else:
+                    fig = plt.figure(figsize=(14, 6))
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
             else:
-                ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
-        
+                plt.figure(fig.number)
+                if rv_time_series:
+                    ax = plt.subplot2grid((3, 14), (0, 0), rowspan=2, colspan=6)
+                else:
+                    ax = plt.subplot2grid((2, 14), (0, 0), rowspan=2, colspan=6)
+        else:
+            ax = axs[0]
+            fig = ax.figure
         astr_inds=np.where((~np.isnan(data['quant1'])) & (~np.isnan(data['quant2'])))
         astr_epochs=data['epoch'][astr_inds]
 
@@ -483,22 +487,38 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
 
         # plot sep/PA and/or rv zoom-in panels
         if rv_time_series:
-            ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
-            ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
-            ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
-            ax2.set_ylabel('PA [$^{{\\circ}}$]')
-            ax1.set_ylabel('$\\rho$ [mas]')
-            ax3.set_ylabel('RV [km/s]')
-            ax3.set_xlabel('Epoch')
-            ax2.set_xlabel('Epoch')
-            plt.subplots_adjust(hspace=0.3)
+            if axs is None:
+                ax1 = plt.subplot2grid((3, 14), (0, 8), colspan=6)
+                ax2 = plt.subplot2grid((3, 14), (1, 8), colspan=6)
+                ax3 = plt.subplot2grid((3, 14), (2, 0), colspan=14, rowspan=1)
+                ax2.set_ylabel('PA [$^{{\\circ}}$]')
+                ax1.set_ylabel('$\\rho$ [mas]')
+                ax3.set_ylabel('RV [km/s]')
+                ax3.set_xlabel('Epoch')
+                ax2.set_xlabel('Epoch')
+                plt.subplots_adjust(hspace=0.3)
+            else:
+                ax1 = axs[1]
+                ax2 = axs[2]
+                ax3 = axs[3]
+                ax2.set_ylabel('PA [$^{{\\circ}}$]')
+                ax1.set_ylabel('$\\rho$ [mas]')
+                ax3.set_ylabel('RV [km/s]')
+                ax3.set_xlabel('Epoch')
+                ax2.set_xlabel('Epoch')
         else:
-            ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
-            ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
-            ax2.set_ylabel('PA [$^{{\\circ}}$]')
-            ax1.set_ylabel('$\\rho$ [mas]')
-            ax2.set_xlabel('Epoch')
-
+            if axs is None:
+                ax1 = plt.subplot2grid((2, 14), (0, 9), colspan=6)
+                ax2 = plt.subplot2grid((2, 14), (1, 9), colspan=6)
+                ax2.set_ylabel('PA [$^{{\\circ}}$]')
+                ax1.set_ylabel('$\\rho$ [mas]')
+                ax2.set_xlabel('Epoch')
+            else:
+                ax1 = axs[1]
+                ax2 = axs[2]
+                ax2.set_ylabel('PA [$^{{\\circ}}$]')
+                ax1.set_ylabel('$\\rho$ [mas]')
+                ax2.set_xlabel('Epoch')
         if plot_astrometry:
             if plot_astrometry_insts:
                 ax1_colors = itertools.cycle(astr_colors)
@@ -675,7 +695,9 @@ def plot_orbits(results, object_to_plot=1, start_mjd=51544.,
                     cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
             else:
                 # xpos, ypos, width, height, in fraction of figure size
-                cbar_ax = fig.add_axes([0.47, 0.15, 0.015, 0.7])
+                cbar_ax = fig.add_axes(
+                    [ax.get_position().x1+0.005, ax.get_position().y0, 0.02, ax.get_position().height]
+                )
                 cbar = mpl.colorbar.ColorbarBase(
                     cbar_ax, cmap=cmap, norm=norm_yr, orientation='vertical', label=cbar_param)
 
@@ -692,6 +714,8 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
                       show_colorbar=True, cmap=cmap,
                       cbar_param=None, tight_layout=False,
                       # fig=None
+                      axs = None,
+                      ax_legend_bbox = None
                      ):
     """
     Plots the proper motion of a host star as induced by a companion for
@@ -837,8 +861,11 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
 
             norm = mpl.colors.Normalize()
 
-        # Create figure for orbit plots
-        fig, axs = plt.subplots(1, 2, figsize=(8,4), facecolor='white')
+        if axs is None:
+            # Create figure for orbit plots
+            fig, axs = plt.subplots(1, 2, figsize=(8,4), facecolor='white')
+        else:
+            fig = axs[0].figure
 
         # Plot each orbit (each segment between two points coloured using colormap)
         for i in np.arange(num_orbits_to_plot):
@@ -950,7 +977,10 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
     axs[0].set_rasterization_zorder(1)
     axs[1].set_rasterization_zorder(1)
 
-    axs[1].legend()
+
+    if ax_legend_bbox is None:
+        ax_legend_bbox=(1.1, 1.05)
+    axs[1].legend(bbox_to_anchor=ax_legend_bbox)
 
     print("Important Note of Caution: the orbitize! implementation of the HGCA \n",
     "fits for the time-averaged proper motions, and not the instantaneous proper \n",
@@ -960,4 +990,5 @@ def plot_propermotion(results, system, object_to_plot=1, start_mjd=44239.,
     if tight_layout:
         plt.tight_layout()
 
-    return fig
+    if axs is None:
+        return fig, axs

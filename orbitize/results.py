@@ -336,7 +336,7 @@ class Results(object):
         cbar_param='Epoch [year]', mod180=False, rv_time_series=False, 
         plot_astrometry=True,
         plot_astrometry_insts=False,
-        plot_errorbars=True, fig=None
+        plot_errorbars=True, fig=None, axs=None
     ):
         """
         Wrapper for orbitize.plot.plot_orbits
@@ -351,7 +351,7 @@ class Results(object):
             cbar_param=cbar_param, mod180=mod180, rv_time_series=rv_time_series, 
             plot_astrometry=plot_astrometry,
             plot_astrometry_insts=plot_astrometry_insts, 
-            plot_errorbars=plot_errorbars, fig=fig
+            plot_errorbars=plot_errorbars, fig=fig, axs=axs
         )
 
     def plot_propermotion(self,
@@ -363,6 +363,8 @@ class Results(object):
                           cmap=orbitize.plot.cmap,
                           cbar_param=None,
                     # fig=None
+                          axs=None,
+                          ax_legend_bbox=None,
         ):
         """
         Wrapper for orbitize.plot.plot_propermotion
@@ -377,4 +379,6 @@ class Results(object):
                         cmap=cmap,
                         cbar_param=cbar_param,
                         # fig=fig
+                        axs=axs,
+                        ax_legend_bbox=ax_legend_bbox
                         )
