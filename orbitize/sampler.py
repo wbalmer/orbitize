@@ -1358,8 +1358,10 @@ class NestedSampler(Sampler):
         bound="multi",
         pfrac=1.0,
         num_threads=1,
+        mpi_pool=False,
         start_method="fork",
         run_nested_kwargs={},
+
     ):
         """Runs the nested sampler from the Dynesty package.
 
@@ -1395,46 +1397,79 @@ class NestedSampler(Sampler):
             raise ValueError(
                 """The static nested sampler does not take alternate values for pfrac."""
             )
+        
+        if not mpi_pool:
 
-        if num_threads > 1:
-            with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
+            if num_threads > 1:
+                with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
+                    if static:
+                        self.dynesty_sampler = dynesty.NestedSampler(
+                            pool.loglike,
+                            pool.prior_transform,
+                            len(self.system.sys_priors),
+                            pool=pool,
+                            bound=bound,
+                            bootstrap=False,
+                        )
+                        self.dynesty_sampler.run_nested(**run_nested_kwargs)
+                    else:
+                        self.dynesty_sampler = dynesty.DynamicNestedSampler(
+                            pool.loglike,
+                            pool.prior_transform,
+                            len(self.system.sys_priors),
+                            pool=pool,
+                            bound=bound,
+                            bootstrap=False,
+                        )
+                        self.dynesty_sampler.run_nested(
+                            wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
+                        )
+            else:
                 if static:
                     self.dynesty_sampler = dynesty.NestedSampler(
-                        pool.loglike,
-                        pool.prior_transform,
+                        self._logl,
+                        self.ptform,
                         len(self.system.sys_priors),
-                        pool=pool,
                         bound=bound,
-                        bootstrap=False,
                     )
                     self.dynesty_sampler.run_nested(**run_nested_kwargs)
                 else:
                     self.dynesty_sampler = dynesty.DynamicNestedSampler(
-                        pool.loglike,
-                        pool.prior_transform,
+                        self._logl,
+                        self.ptform,
                         len(self.system.sys_priors),
-                        pool=pool,
                         bound=bound,
-                        bootstrap=False,
                     )
                     self.dynesty_sampler.run_nested(
                         wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
                     )
         else:
+            from schwimmbad import MPIPool
+            import sys
+            pool = MPIPool()
+
+            if not pool.is_master():
+                pool.wait()
+                sys.exit(0)
+
             if static:
                 self.dynesty_sampler = dynesty.NestedSampler(
-                    self._logl,
+                    self._logl, 
                     self.ptform,
                     len(self.system.sys_priors),
+                    pool=pool,
                     bound=bound,
+                    bootstrap=False,
                 )
                 self.dynesty_sampler.run_nested(**run_nested_kwargs)
             else:
                 self.dynesty_sampler = dynesty.DynamicNestedSampler(
-                    self._logl,
+                    self._logl, 
                     self.ptform,
                     len(self.system.sys_priors),
+                    pool=pool,
                     bound=bound,
+                    bootstrap=False,
                 )
                 self.dynesty_sampler.run_nested(
                     wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
