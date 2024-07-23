@@ -5,6 +5,8 @@ import abc
 import time
 from astropy.time import Time
 
+import os.path
+
 import dynesty
 
 import emcee
@@ -1360,6 +1362,8 @@ class NestedSampler(Sampler):
         num_threads=1,
         mpi_pool=False,
         start_method="fork",
+        resume_from=None,
+        save_to=None,
         run_nested_kwargs={},
 
     ):
@@ -1398,32 +1402,51 @@ class NestedSampler(Sampler):
                 """The static nested sampler does not take alternate values for pfrac."""
             )
         
+        if save_to is not None:
+            if save_to.endswith('dynesty.save'):
+                checkpoint_file = save_to
+            else:
+                raise UserWarning('save_to doesn\'t end with "dynesty.save", adding it to the path you provided and trying to checkpoint... ')
+                checkpoint_file = save_to+'dynesty.save'
+        
         if not mpi_pool:
 
             if num_threads > 1:
                 with dynesty.pool.Pool(num_threads, self._logl, self.ptform) as pool:
-                    if static:
-                        self.dynesty_sampler = dynesty.NestedSampler(
-                            pool.loglike,
-                            pool.prior_transform,
-                            len(self.system.sys_priors),
+                    if resume_from is None:
+
+                        if static:
+                            self.dynesty_sampler = dynesty.NestedSampler(
+                                pool.loglike,
+                                pool.prior_transform,
+                                len(self.system.sys_priors),
+                                pool=pool,
+                                bound=bound,
+                                bootstrap=False,
+                            )
+                            self.dynesty_sampler.run_nested(checkpoint_file=checkpoint_file,
+                            
+                            **run_nested_kwargs)
+                        else:
+                            self.dynesty_sampler = dynesty.DynamicNestedSampler(
+                                pool.loglike,
+                                pool.prior_transform,
+                                len(self.system.sys_priors),
+                                pool=pool,
+                                bound=bound,
+                                bootstrap=False,
+                            )
+                            self.dynesty_sampler.run_nested(
+                                checkpoint_file=checkpoint_file,
+                                wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
+                            )
+                    elif resume_from is not None and os.path.isfile(resume_from):
+                        self.dynesty_sampler = dynesty.DynamicNestedSampler.restore(
+                            fname=resume_from,
                             pool=pool,
-                            bound=bound,
-                            bootstrap=False,
                         )
-                        self.dynesty_sampler.run_nested(**run_nested_kwargs)
                     else:
-                        self.dynesty_sampler = dynesty.DynamicNestedSampler(
-                            pool.loglike,
-                            pool.prior_transform,
-                            len(self.system.sys_priors),
-                            pool=pool,
-                            bound=bound,
-                            bootstrap=False,
-                        )
-                        self.dynesty_sampler.run_nested(
-                            wt_kwargs={"pfrac": pfrac}, **run_nested_kwargs
-                        )
+                        raise FileNotFoundError('resume_from file does not exist or the paths are borked!')
             else:
                 if static:
                     self.dynesty_sampler = dynesty.NestedSampler(
