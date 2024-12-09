@@ -261,12 +261,16 @@ def plot_orbits(
 
         if cbar_param in ["Epoch [year]", "Epoch (year)"]:
             pass
-        elif cbar_param[0:3] in possible_cbar_params:
+        elif cbar_param == 'theta':
+           pass
+        else: 
+        # cbar_param[0:3] in possible_cbar_params:
             index = results.param_idx[cbar_param]
-        else:
-            raise Exception(
-                "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
-            )
+        # else:
+        #     print(cbar_param[0:3])
+        #     raise Exception(
+        #         "Invalid input; acceptable inputs include 'Epoch [year]', 'plx', 'sma1', 'ecc1', 'inc1', 'aop1', 'pan1', 'tau1', 'sma2', 'ecc2', ...)"
+        #     )
         # Select random indices for plotted orbit
         num_orbits = len(results.post[:, 0])
         if num_orbits_to_plot > num_orbits:
@@ -275,12 +279,14 @@ def plot_orbits(
 
         # Get posteriors from random indices
         standard_post = []
+        full_post = []
         if results.sampler_name == "MCMC":
             # Convert the randomly chosen posteriors to standard keplerian set
             for i in np.arange(num_orbits_to_plot):
                 orb_ind = choose[i]
                 param_set = np.copy(results.post[orb_ind])
                 standard_post.append(results.basis.to_standard_basis(param_set))
+                full_post.append(param_set)
         else:  # For OFTI, posteriors are already converted
             for i in np.arange(num_orbits_to_plot):
                 orb_ind = choose[i]
@@ -307,6 +313,16 @@ def plot_orbits(
             :, results.standard_param_idx["tau{}".format(object_to_plot)]
         ]
         plx = standard_post[:, results.standard_param_idx["plx"]]
+
+        chain = np.array(full_post)
+        ic = chain[:,results.param_idx['inc2']]
+        ib = chain[:,results.param_idx['inc1']]
+        Oc = chain[:,results.param_idx['aop2']]
+        Ob = chain[:,results.param_idx['aop1']]
+
+        costheta = (np.cos(ib)*np.cos(ic))+(np.sin(ib)*np.sin(ic)*np.cos(Ob-Oc))
+
+        theta = np.rad2deg(np.arccos(costheta))
 
         # test gamma 3
         if rv_time_series:
@@ -391,7 +407,15 @@ def plot_orbits(
             deoff[i, :] = deoff0
 
         # Create a linearly increasing colormap for our range of epochs
-        if cbar_param not in ["Epoch [year]", "Epoch (year)"]:
+        if cbar_param == 'theta':
+            cbar_param_arr = theta
+            norm = mpl.colors.Normalize(
+                vmin=np.min(cbar_param_arr), vmax=np.max(cbar_param_arr)
+            )
+            norm_yr = mpl.colors.Normalize(
+                vmin=np.min(cbar_param_arr), vmax=np.max(cbar_param_arr)
+            )
+        elif cbar_param not in ["Epoch [year]", "Epoch (year)"]:
             cbar_param_arr = results.post[:, index]
             norm = mpl.colors.Normalize(
                 vmin=np.min(cbar_param_arr), vmax=np.max(cbar_param_arr)
